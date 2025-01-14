@@ -1,17 +1,40 @@
 import { chatSession } from "@/configs/AiModel";
 import { NextResponse } from "next/server";
 
+export const maxDuration = 300; // Set maximum duration to 300 seconds
+export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
-    const { prompt} = await req.json();
-
     try {
-        const result = await chatSession.sendMessage(prompt);
-        const AIResp = result.response.text();
-        return NextResponse.json({result: AIResp});
-    } catch (error) {
-        console.error(error);
-        return NextResponse.error({error});
+        const { prompt } = await req.json();
+
+        if (!prompt) {
+            return NextResponse.json(
+                { error: 'Prompt is required' },
+                { status: 400 }
+            );
+        }
+
+        const result = await Promise.race([
+            chatSession.sendMessage(prompt),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout')), 280000)
+            )
+        ]);
+
+        const response = await result.response;
+        const text = await response.text();
         
+        return NextResponse.json(
+            { result: text },
+            { status: 200 }
+        );
+
+    } catch (error) {
+        console.error('Chat API Error:', error);
+        return NextResponse.json(
+            { error: error.message || 'Internal server error' },
+            { status: error.name === 'TimeoutError' ? 504 : 500 }
+        );
     }
 }
