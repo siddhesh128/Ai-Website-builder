@@ -1,40 +1,25 @@
 import { GenAiCode } from "@/configs/AiModel";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 300; 
+export const maxDuration = 60; // Reduced to 60 seconds for hobby plan
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
-    try {
-        const { prompt } = await req.json();
-        
-        if (!prompt) {
-            return NextResponse.json(
-                { error: 'Prompt is required' },
-                { status: 400 }
-            );
-        }
+    const {prompt} = await req.json();
 
+    try {
         const result = await Promise.race([
             GenAiCode.sendMessage(prompt),
             new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Request timeout')), 280000)
+                setTimeout(() => reject(new Error('Request timeout')), 55000)
             )
         ]);
 
-        const response = await result.response;
-        const text = await response.text();
-        
-        return NextResponse.json(
-            { result: JSON.parse(text) },
-            { status: 200 }
-        );
+        const resp = result.response.text();
+        return NextResponse.json(JSON.parse(resp));
         
     } catch (error) {
-        console.error('API Error:', error);
-        return NextResponse.json(
-            { error: error.message || 'Internal server error' },
-            { status: error.name === 'TimeoutError' ? 504 : 500 }
-        );
+        console.log(error);
+        return NextResponse.error({error});
     }
 }
